@@ -11,3 +11,4 @@ build
 /pnpm-lock.yaml
 *d.ts
 .DS_Store
+.turbo

@@ -1,0 +1,7 @@
+{
+  "/api/game/leave/route": "app/api/game/leave/route.js",
+  "/api/game/finish/route": "app/api/game/finish/route.js",
+  "/game/page": "app/game/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/page": "app/page.js"
+}
