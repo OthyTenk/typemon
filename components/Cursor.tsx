@@ -31,24 +31,14 @@ interface CursorProps {
 const Cursor: FC<CursorProps> = ({ activeLetterRef, isOpponent = false }) => {
   if (!activeLetterRef || !activeLetterRef.current) return null
 
-  const {
-    offsetTop,
-    clientHeight,
-    offsetLeft: cursorLeft,
-  } = activeLetterRef.current
-
-  const diff = Math.max(offsetTop - clientHeight, 0)
-  const cursorTop = offsetTop - diff
+  const { offsetTop, offsetLeft: cursorLeft } = activeLetterRef.current
 
   return (
     <div
-      style={{ left: cursorLeft, top: cursorTop }}
+      style={{ left: cursorLeft, top: offsetTop }}
       className={`absolute border-l-[2px] h-8 ${
         !isOpponent ? "border-yellow-400" : "border-orange-500"
-      }`}
-      //   style={{ transform: `translate(${cursorLeft}, ${cursorTop})` }}
-      //   className="fixed w-[3px] transition h-8 bg-orange-500 text-white"
-    >
+      }`}>
       {isOpponent && (
         <div className="w-[10px] h-[10px] bg-orange-500 -mt-[6px] -ml-[6px] rounded-full" />
       )}

@@ -1,7 +1,9 @@
 "use client"
 
-import { pusherClient } from "@/libs/pusher"
+import { socket } from "@/libs/socket"
 import useGame from "@/store/useGame"
+import useGameResult from "@/store/useGameResult"
+import useGameSession from "@/store/useGameSession"
 import useGlobal from "@/store/useGlobal"
 import axios from "axios"
 import { FC, useEffect } from "react"
@@ -36,30 +38,39 @@ const GameMode: FC<GameModeProps> = ({ userName }) => {
   useEffect(() => {
     if (!gameCode) return
 
-    const channel = pusherClient.subscribe(gameCode)
+    // Connect and join the game room
+    socket.connect()
+    socket.emit("join-game", gameCode)
 
-    channel.bind("has-joined-game", (data: { gameCode: string }) => {
+    const onHasJoinedGame = (data: { gameCode: string }) => {
       setGameCode(data.gameCode)
       setJoinCode(data.gameCode)
-    })
+    }
+
+    socket.on("has-joined-game", onHasJoinedGame)
 
     return () => {
-      if (gameCode) {
-        pusherClient.unsubscribe(gameCode)
-        pusherClient.unbind("has-joined-game")
-      }
+      socket.off("has-joined-game", onHasJoinedGame)
+      socket.emit("leave-game", gameCode)
+      socket.disconnect()
     }
   }, [gameCode, setGameCode, setJoinCode])
 
   const onLeaveGame = async () => {
+    const { clearGameData } = useGameSession.getState()
+    const { reset: resetGameResult } = useGameResult.getState()
+
     await axios
       .post("/api/game/leave", {
         userId: currentUserId,
         gameCode: gameCode || creatorCode,
       })
       .then(() => {
+        // Clear all game-related state
         reset()
         stopType()
+        clearGameData()
+        resetGameResult()
       })
   }
 

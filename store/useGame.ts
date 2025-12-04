@@ -18,7 +18,6 @@ interface IActions {
   reset: () => void
 }
 
-// Initialize a default state
 const INITIAL_STATE: IGameStore = {
   currentUser: "",
   currentUserId: "",

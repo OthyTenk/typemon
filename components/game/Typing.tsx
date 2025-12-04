@@ -1,82 +1,154 @@
 "use client"
 
-import {
-  ChangeEvent,
-  FC,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react"
+import { FC, useEffect, useMemo, useRef, useState } from "react"
 
 import useGlobal from "@/store/useGlobal"
 
 import Cursor from "@/components/Cursor"
 import TimeTick from "@/components/TimeTick"
 import { IResultStatisticStore } from "@/hooks/useResultStatistic"
-import { pusherClient } from "@/libs/pusher"
-import { countCorrectCharacters } from "@/libs/utils"
+import useTyping from "@/hooks/useTyping"
+import { socket } from "@/libs/socket"
 import useGame from "@/store/useGame"
 import useGameResult from "@/store/useGameResult"
 import useGameResultModal from "@/store/useGameResultModal"
+import useGameSession from "@/store/useGameSession"
 import axios from "axios"
 
 interface ITypingProps {
   currentText: string
   currentUserId: string
+  isCountdownActive?: boolean
 }
 
-const Typing: FC<ITypingProps> = ({ currentText, currentUserId }) => {
-  const { stopType, isTyping } = useGlobal()
+const Typing: FC<ITypingProps> = ({
+  currentText,
+  currentUserId,
+  isCountdownActive = false,
+}) => {
+  const { stopType, isTyping: globalIsTyping } = useGlobal()
 
-  const inputRef = useRef<HTMLInputElement>(null)
   const activeLetterRef = useRef<HTMLSpanElement>()
-  const opponentLetterRef = useRef<HTMLSpanElement>()
+  const letterRefs = useRef<(HTMLSpanElement | null)[]>([])
 
-  // const [position, setPosition] = useState(0)
-  const [tickTime, setTickTime] = useState(0)
   const [gameFinish, setGameFinish] = useState(false)
-  const {
-    creator,
-    guest,
-    setGuest,
-    setCreator,
-    reset: resetGameResult,
-  } = useGameResult()
+  const { players, updatePlayer, reset: resetGameResult } = useGameResult()
   const gameResultModal = useGameResultModal()
   const { code: gameCode, reset } = useGame()
+  const { clearGameData } = useGameSession()
 
-  const [typingText, setTypingText] = useState<string | ReactElement[]>("")
-  const [inpFieldValue, setInpFieldValue] = useState("")
-  const [charIndex, setCharIndex] = useState(0)
+  const [opponentPositions, setOpponentPositions] = useState<
+    Record<string, number>
+  >({})
 
-  const loadParagraph = useCallback(() => {
-    const content = Array.from(currentText).map((letter, index) => (
-      <span
-        key={index}
-        ref={(element) => {
-          if (index === 0) {
-            activeLetterRef.current = element || undefined
-            opponentLetterRef.current = element || undefined
-          }
-        }}>
-        {letter}
-      </span>
-    ))
+  const onSendActiveCharPosition = async (position: number) => {
+    socket.emit("typing", {
+      position: position,
+      userId: currentUserId,
+      gameCode,
+    })
+  }
 
-    setTypingText(content)
-    setInpFieldValue("")
-    setCharIndex(0)
-  }, [currentText])
+  const {
+    inputRef,
+    inpFieldValue,
+    charIndex,
+    mistakes,
+    isTyping,
+    tickTime,
+    wpm,
+    cpm,
+    reset: resetTyping,
+    handleTyping,
+  } = useTyping({
+    currentText,
+    mode: "stopwatch",
+    onType: (index, value) => {
+      activeLetterRef?.current?.scrollIntoView({ behavior: "smooth" })
+      onSendActiveCharPosition(index)
+    },
+    onFinish: async () => {
+      setGameFinish(true)
+      gameResultModal.onOpen()
+
+      const currentPlayer = players.find(
+        (p) => p.currentUserEmail === currentUserId
+      )
+
+      const newStats: IResultStatisticStore = {
+        ...currentPlayer!,
+        currentUserEmail: currentUserId,
+        time: tickTime,
+        mistakes: mistakes,
+        WPM: wpm,
+        CPM: cpm,
+      }
+      updatePlayer(newStats)
+
+      socket.emit("game-finish", {
+        ...newStats,
+        gameCode,
+      })
+
+      await axios
+        .post("/api/game/finish", {
+          result: newStats,
+          gameCode,
+        })
+        .catch((err) => {
+          console.error(err)
+        })
+    },
+  })
 
   useEffect(() => {
-    if (!currentText || inpFieldValue.length > currentText.length) {
-      stopType()
-      return
+    if (!gameCode) return
+
+    const onGameRestart = (startGame: any) => {
+      if (gameFinish || gameResultModal.isOpen) {
+        resetTyping()
+        resetGameResult()
+        setGameFinish(false)
+
+        if (gameResultModal.isOpen) {
+          gameResultModal.onClose()
+        }
+      }
     }
 
-    const content = Array.from(currentText).map((letter, index) => {
+    socket.on("game-starts-in", onGameRestart)
+
+    return () => {
+      socket.off("game-starts-in", onGameRestart)
+    }
+  }, [gameCode, gameFinish, resetTyping, resetGameResult, gameResultModal])
+
+  useEffect(() => {
+    if (isTyping) {
+      const currentPlayer = players.find(
+        (p) => p.currentUserEmail === currentUserId
+      )
+      const newStats: IResultStatisticStore = {
+        ...currentPlayer!,
+        currentUserEmail: currentUserId,
+        time: tickTime, // We might want to update time in store?
+        mistakes: mistakes,
+        WPM: wpm,
+        CPM: cpm,
+      }
+      updatePlayer(newStats)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cpm, wpm, mistakes, isTyping, currentUserId, tickTime])
+
+  useEffect(() => {
+    if (!isTyping && globalIsTyping) {
+      stopType()
+    }
+  }, [isTyping, globalIsTyping, stopType])
+
+  const typingText = useMemo(() => {
+    return Array.from(currentText).map((letter, index) => {
       let resultColor = ""
       if (index < inpFieldValue.length) {
         resultColor =
@@ -91,106 +163,29 @@ const Typing: FC<ITypingProps> = ({ currentText, currentUserId }) => {
         <span
           key={index}
           ref={(element) => {
-            inpFieldValue.length === index &&
-              (activeLetterRef.current = element || undefined)
+            letterRefs.current[index] = element
           }}
           className={`${resultColor}`}>
           {letter}
         </span>
       )
     })
-
-    if (inpFieldValue.length >= currentText.length) {
-      stopType()
-      inputRef.current?.blur()
-    }
-
-    setTypingText(content)
-  }, [inpFieldValue, currentText, stopType])
-
-  const setInputFocus = () => {
-    return inputRef.current?.focus()
-  }
+  }, [currentText, inpFieldValue])
 
   useEffect(() => {
-    document.addEventListener("keydown", setInputFocus)
-
-    loadParagraph()
-
-    return () => document.removeEventListener("keydown", setInputFocus)
-  }, [loadParagraph])
-
-  useEffect(() => {
-    let cpm = (charIndex - creator.mistakes) * (60 / tickTime)
-    cpm = cpm < 0 || !cpm || cpm === Infinity ? 0 : cpm
-    creator.CPM = Math.round(cpm)
-
-    let wpm = Math.round(((charIndex - creator.mistakes) / 5 / tickTime) * 60)
-    wpm = wpm < 0 || !wpm || wpm === Infinity ? 0 : wpm
-    creator.WPM = wpm
-  }, [tickTime, charIndex, creator])
-
-  const onTyping = (e: ChangeEvent<HTMLInputElement>) => {
-    if (tickTime === 0 || gameFinish) {
-      return
-    }
-    setInpFieldValue(e.target.value)
-
-    if (inpFieldValue.length > typingText.length - 1) {
-      setGameFinish(true)
-      onFinishedGame()
-      gameResultModal.onOpen()
-      return
-    }
-
-    const currentTypingPosition = inpFieldValue.length
-
-    activeLetterRef?.current?.scrollIntoView({ behavior: "smooth" })
-    setCharIndex(currentTypingPosition)
-    onSendActiveCharPosition(currentTypingPosition)
-    creator.mistakes = countCorrectCharacters(currentText, inpFieldValue)
-  }
-
-  const onSendActiveCharPosition = async (position: number) => {
-    await axios
-      .post("/api/game/playing", {
-        position: position + 1,
-        currentUserId,
-        gameCode,
-      })
-      .catch((err) => {
-        console.error(err)
-      })
-  }
-
-  const onFinishedGame = useCallback(async () => {
-    const newCreator = {
-      ...creator,
-      currentUserEmail: currentUserId,
-      time: tickTime,
-    }
-    setCreator(newCreator)
-
-    await axios
-      .post("/api/game/finish", {
-        result: newCreator,
-        gameCode,
-      })
-      .catch((err) => {
-        console.error(err)
-      })
-  }, [gameCode, creator, setCreator, currentUserId, tickTime])
+    activeLetterRef.current = letterRefs.current[charIndex] || undefined
+  }, [charIndex])
 
   useEffect(() => {
     if (!gameCode) return
-
-    const channel = pusherClient.subscribe(gameCode)
 
     const opponentDisconnected = (data: { gameCode: string }) => {
       if (gameCode === data.gameCode) {
         reset()
         stopType()
         resetGameResult()
+        resetTyping()
+        clearGameData()
 
         if (gameResultModal.isOpen) {
           gameResultModal.onClose()
@@ -202,19 +197,10 @@ const Typing: FC<ITypingProps> = ({ currentText, currentUserId }) => {
       if (!data || data.userId === currentUserId) {
         return
       }
-
-      // setPosition(data.position)
-      Array.from(currentText).map((letter, index) => {
-        return (
-          <span
-            key={index}
-            ref={(element) => {
-              data.position === index &&
-                (opponentLetterRef.current = element || undefined)
-            }}
-          />
-        )
-      })
+      setOpponentPositions((prev) => ({
+        ...prev,
+        [data.userId]: data.position,
+      }))
     }
 
     const gameFinish = (data: IResultStatisticStore) => {
@@ -222,62 +208,41 @@ const Typing: FC<ITypingProps> = ({ currentText, currentUserId }) => {
         return
       }
 
-      stopType()
-      setGameFinish(true)
-
-      if (!guest.currentUserEmail) {
-        setGuest(data)
-      }
-
-      if (!creator.currentUserEmail && !gameResultModal.isOpen) {
-        onFinishedGame()
-      }
+      updatePlayer(data)
 
       if (!gameResultModal.isOpen) {
-        gameResultModal.onOpen()
       }
     }
 
-    channel.bind("opponent-position", opponentPosition)
-    channel.bind("opponent-disconnected", opponentDisconnected)
-    channel.bind("game-finish", gameFinish)
+    socket.on("opponent-position", opponentPosition)
+    socket.on("opponent-disconnected", opponentDisconnected)
+    socket.on("game-finish", gameFinish)
 
     return () => {
-      if (gameCode) {
-        pusherClient.unsubscribe(gameCode)
-        pusherClient.unbind("opponent-position")
-        pusherClient.unbind("game-finish")
-      }
+      socket.off("opponent-position", opponentPosition)
+      socket.off("opponent-disconnected", opponentDisconnected)
+      socket.off("game-finish", gameFinish)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    setCreator,
-    tickTime,
     currentUserId,
     gameCode,
     reset,
     stopType,
     gameResultModal,
-    creator,
-    guest,
-    setGuest,
-    onFinishedGame,
     resetGameResult,
+    resetTyping,
     currentText,
   ])
 
+  const setInputFocus = () => {
+    return inputRef.current?.focus()
+  }
+
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined = undefined
-
-    if (isTyping) {
-      interval = setInterval(() => {
-        setTickTime((priv) => priv + 1)
-      }, 1000)
-    } else {
-      clearInterval(interval)
-    }
-
-    return () => clearInterval(interval)
-  }, [isTyping])
+    document.addEventListener("keydown", setInputFocus)
+    return () => document.removeEventListener("keydown", setInputFocus)
+  }, [setInputFocus])
 
   return (
     <>
@@ -298,14 +263,24 @@ const Typing: FC<ITypingProps> = ({ currentText, currentUserId }) => {
               autoFocus
               value={inpFieldValue}
               tabIndex={-1}
-              onChange={onTyping}
+              onChange={handleTyping}
+              disabled={isCountdownActive}
             />
             <div className="relative pb-8 text-2xl text-neutral-300 font-mono">
-              {/* Creator */}
+              {/* Creator (Me) */}
               <Cursor activeLetterRef={activeLetterRef} />
 
-              {/* Opponent */}
-              <Cursor activeLetterRef={opponentLetterRef} isOpponent={true} />
+              {/* Opponents */}
+              {Object.entries(opponentPositions).map(([userId, pos]) => {
+                const ref = { current: letterRefs.current[pos] || undefined }
+                return (
+                  <Cursor
+                    key={userId}
+                    activeLetterRef={ref}
+                    isOpponent={true}
+                  />
+                )
+              })}
 
               <div className="whitespace-break-spaces leading-8 h-24 overflow-hidden">
                 {typingText}
