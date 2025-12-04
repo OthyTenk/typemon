@@ -26,9 +26,9 @@ dist-ssr
 /coverage
 
 # next.js
-/.next/
-/out/
-/dist/
+/apps/web/.next/
+/apps/web/out/
+/apps/web/dist/
 # local env files
 .env*.local
 .env
