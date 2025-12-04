@@ -1,5 +1,4 @@
 import prisma from "@/libs/db"
-import { pusherServer } from "@/libs/pusher"
 import { NextResponse } from "next/server"
 
 export const POST = async (request: Request) => {
@@ -23,10 +22,6 @@ export const POST = async (request: Request) => {
     return new NextResponse("No Game found", { status: 200 })
   }
   const { gameCode } = game
-
-  await pusherServer.trigger(gameCode, "opponent-disconnected", {
-    gameCode: gameCode,
-  })
 
   await prisma.gamePlayer.deleteMany({
     where: {

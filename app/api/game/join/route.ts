@@ -1,11 +1,8 @@
 import prisma from "@/libs/db"
-import { pusherServer } from "@/libs/pusher"
-import { Player } from "@/types"
 import { NextResponse } from "next/server"
 
 const CounterTime = 5000
 
-//sentence length
 const Beginner = 60
 const Medium = 120
 const Master = 180
@@ -19,49 +16,27 @@ export const POST = async (request: Request) => {
     return new NextResponse("Invalid User", { status: 401 })
   }
 
-  const creatorOrj = await prisma.gamePlayer.findFirstOrThrow({
+  const existingPlayer = await prisma.gamePlayer.findFirst({
     where: {
-      gameCode: gameCode,
-    },
-  })
-
-  const { sentence } = await prisma.typeText.findFirstOrThrow({
-    where: {
-      language: "en",
-    },
-  })
-
-  await prisma.gamePlayer.create({
-    data: {
       gameCode: gameCode,
       playerId: userId,
     },
   })
 
-  await pusherServer.trigger(gameCode, "has-joined-game", {
-    gameCode: gameCode,
-  })
-
-  const creator: Player = {
-    id: creatorOrj.playerId,
-    name: creatorOrj.playerId,
-    charPosition: 0,
+  if (!existingPlayer) {
+    await prisma.gamePlayer.create({
+      data: {
+        gameCode: gameCode,
+        playerId: userId,
+      },
+    })
   }
 
-  const guest: Player = {
-    id: userId,
-    name: userId,
-    charPosition: 0,
-  }
-
-  //counter
-  const startsAt = new Date().getTime() + CounterTime
-  await pusherServer.trigger(gameCode, "game-starts-in", {
-    startTime: startsAt,
-    sentence: sentence.substring(0, Beginner),
-    creator,
-    guest,
+  const allPlayers = await prisma.gamePlayer.findMany({
+    where: {
+      gameCode: gameCode,
+    },
   })
 
-  return NextResponse.json("ok")
+  return NextResponse.json({ players: allPlayers })
 }

@@ -4,16 +4,52 @@ import Modal from "@/components/modals/Modal"
 import useGame from "@/store/useGame"
 import useGameResult from "@/store/useGameResult"
 import useGameResultModal from "@/store/useGameResultModal"
+import useGameSession from "@/store/useGameSession"
+import useGlobal from "@/store/useGlobal"
+import { socket } from "@/libs/socket"
+import axios from "axios"
+import { INITIAL_STATE } from "@/hooks/useResultStatistic"
 import { FaRegThumbsDown } from "react-icons/fa"
 import { GiPodiumWinner } from "react-icons/gi"
 
 const GameResultModal = () => {
   const gameResultModal = useGameResultModal()
-  const { creator, guest } = useGameResult()
-  const { currentUserId } = useGame()
+  const { players: resultPlayers, reset: resetGameResult } = useGameResult()
+  const [creator = INITIAL_STATE, guest = INITIAL_STATE] = resultPlayers
+  const { currentUserId, reset: resetGame, code: gameCode } = useGame()
+  const { clearGameData, players: sessionPlayers } = useGameSession()
+  const { stopType } = useGlobal()
+
+  const allPlayersFinished =
+    resultPlayers.length >= sessionPlayers.length && sessionPlayers.length > 0
 
   const onSaveResult = async () => {
+    clearGameData()
     gameResultModal.onClose()
+  }
+
+  const onRestart = async () => {
+    resetGameResult()
+    clearGameData()
+    stopType()
+    gameResultModal.onClose()
+
+    if (gameCode && currentUserId) {
+      await axios
+        .post("/api/game/start", {
+          gameCode,
+          userId: currentUserId,
+        })
+        .then((res) => {
+          socket.emit("game-start", {
+            ...res.data,
+            gameCode,
+          })
+        })
+        .catch((err) => {
+          console.error("Failed to restart game:", err)
+        })
+    }
   }
 
   const bodyContent = (
@@ -94,6 +130,10 @@ const GameResultModal = () => {
       actionLabel="OK"
       onSubmit={onSaveResult}
       onClose={onSaveResult}
+      secondaryAction={allPlayersFinished ? onRestart : undefined}
+      secondaryActionLabel={
+        allPlayersFinished ? "Restart" : "Waiting for others..."
+      }
       isOpen={gameResultModal.isOpen}
       body={bodyContent}
     />

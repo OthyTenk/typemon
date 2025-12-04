@@ -15,6 +15,7 @@ const CreateGame = () => {
     creatorCode,
     setGameCode: setGameCodeGlobal,
     setGameCreatorCode,
+    setJoinCode,
   } = useGame()
 
   const onCreateGame = async () => {
@@ -30,6 +31,7 @@ const CreateGame = () => {
       .then((res) => {
         setGameCreatorCode(res.data.gameCode)
         setGameCodeGlobal(res.data.gameCode)
+        setJoinCode(res.data.gameCode)
       })
       .finally(() => {
         setCodeLoading(false)
@@ -48,6 +50,39 @@ const CreateGame = () => {
       })
       .then((res) => {
         setGameCreatorCode("")
+        setJoinCode(gameCode)
+
+        // Emit socket event
+        // We need to import socket here or pass it down.
+        // Since we are in a client component, we can import the singleton.
+        // But we need to make sure it's connected. GameMode connects it.
+        // If we are here, we might not be connected yet if we just typed the code?
+        // GameMode connects when `gameCode` is set.
+        // Here we set `gameCode` global.
+        // But `GameMode` effect might run after this?
+        // Actually, `GameMode` effect runs when `gameCode` changes.
+        // Here we call `setGameCodeGlobal(gameCode)`.
+        // So `GameMode` will connect.
+        // But we want to emit *after* connection?
+        // Or we can just emit and if it's not connected it might buffer or fail?
+        // Socket.io buffers events by default if disconnected?
+        // Actually, we should probably ensure connection.
+
+        // However, `GameMode` handles connection.
+        // Maybe we should just emit here.
+        // But wait, `GameMode` listens for `has-joined-game`.
+        // If we emit `player-joined`, the server emits `has-joined-game`.
+        // If we are not connected, we won't receive it?
+        // We are the one joining, so we should be connected.
+
+        // Let's import socket.
+        const { socket } = require("@/libs/socket")
+        if (!socket.connected) socket.connect()
+
+        socket.emit("player-joined", {
+          gameCode,
+          players: res.data.players,
+        })
       })
       .catch((res) => {
         setCodeError(true)

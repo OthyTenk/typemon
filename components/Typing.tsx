@@ -1,21 +1,13 @@
 "use client"
 
-import {
-  ChangeEvent,
-  FC,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react"
+import { FC, useCallback, useEffect, useMemo } from "react"
 import { IoRefresh } from "react-icons/io5"
 
 import useGlobal from "@/store/useGlobal"
 
 import useResultStatistic from "@/hooks/useResultStatistic"
+import useTyping from "@/hooks/useTyping"
 import useTypingResultModal from "@/hooks/useTypingResultModal"
-import { countCorrectCharacters } from "@/libs/utils"
 import TimeTick from "./TimeTick"
 
 interface ITypingProps {
@@ -30,41 +22,68 @@ const Typing: FC<ITypingProps> = ({
   changeText,
 }) => {
   const { stopType, startType, time } = useGlobal()
-
-  const inputRef = useRef<HTMLInputElement>(null)
-
   const typingResultModal = useTypingResultModal()
-  const CurrentPositionStyle = "border-l-2 border-yellow-400 animate-pulse"
   const stat = useResultStatistic()
+  const CurrentPositionStyle = "border-l-2 border-yellow-400 animate-pulse"
 
-  const [typingText, setTypingText] = useState<string | ReactElement[]>("")
-  const [inpFieldValue, setInpFieldValue] = useState("")
-  const [timeLeft, setTimeLeft] = useState(time)
-  const [charIndex, setCharIndex] = useState(0)
-  const [isTyping, setIsTyping] = useState(false)
+  const onFinish = useCallback(() => {
+    stopType()
+    stat.currentUserEmail = currentUserEmail
+    typingResultModal.onOpen()
+  }, [stopType, stat, currentUserEmail, typingResultModal])
 
-  const loadParagraph = useCallback(() => {
-    const content = Array.from(currentText).map((letter, index) => (
-      <span
-        key={index}
-        className={`leading-8 ${index === 0 ? CurrentPositionStyle : ""}`}>
-        {letter}
-      </span>
-    ))
-    setTypingText(content)
+  const {
+    inputRef,
+    inpFieldValue,
+    charIndex,
+    mistakes,
+    isTyping,
+    timeLeft,
+    wpm,
+    cpm,
+    reset,
+    handleTyping,
+  } = useTyping({
+    currentText,
+    mode: "timer",
+    duration: time,
+    onFinish,
+  })
 
-    setInpFieldValue("")
-    setCharIndex(0)
-    setIsTyping(false)
-    setTimeLeft(time)
+  // Sync global isTyping state
+  useEffect(() => {
+    if (isTyping) {
+      startType()
+    } else {
+      stopType()
+    }
+  }, [isTyping, startType, stopType])
+
+  // Sync stats
+  useEffect(() => {
+    stat.CPM = cpm
+    stat.WPM = wpm
+    stat.mistakes = mistakes
+  }, [cpm, wpm, mistakes, stat])
+
+  // Reset when text changes
+  useEffect(() => {
+    reset()
     stopType()
     stat.setValues
-  }, [stat, stopType, time, currentText])
+  }, [currentText, reset, stopType, stat])
+
+  const setInputFocus = () => {
+    return inputRef.current?.focus()
+  }
 
   useEffect(() => {
-    if (!currentText) return
+    document.addEventListener("keydown", setInputFocus)
+    return () => document.removeEventListener("keydown", setInputFocus)
+  }, [setInputFocus])
 
-    const content = Array.from(currentText).map((letter, index) => {
+  const typingText = useMemo(() => {
+    return Array.from(currentText).map((letter, index) => {
       let resultColor = ""
       if (index < inpFieldValue.length) {
         resultColor =
@@ -85,73 +104,10 @@ const Typing: FC<ITypingProps> = ({
         </span>
       )
     })
-
-    setTypingText(content)
-  }, [inpFieldValue, currentText])
-
-  const setInputFocus = () => {
-    return inputRef.current?.focus()
-  }
-
-  useEffect(() => {
-    document.addEventListener("keydown", setInputFocus)
-
-    loadParagraph()
-
-    return () => document.removeEventListener("keydown", setInputFocus)
-  }, [loadParagraph])
-
-  useEffect(() => {
-    let cpm = (charIndex - stat.mistakes) * (60 / (time - timeLeft))
-    cpm = cpm < 0 || !cpm || cpm === Infinity ? 0 : cpm
-    stat.CPM = Math.round(cpm)
-
-    let wpm = Math.round(
-      ((charIndex - stat.mistakes) / 5 / (time - timeLeft)) * 60
-    )
-    wpm = wpm < 0 || !wpm || wpm === Infinity ? 0 : wpm
-    stat.WPM = wpm
-  }, [timeLeft, charIndex, stat, time])
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | undefined = undefined
-
-    if (timeLeft <= 0 || !isTyping) {
-      clearInterval(interval)
-      setIsTyping(false)
-      stopType()
-      return
-    }
-
-    interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000)
-
-    return () => clearInterval(interval)
-  }, [isTyping, timeLeft, stopType])
+  }, [currentText, inpFieldValue])
 
   const onTryAgain = () => {
     changeText()
-  }
-
-  const onTyping = (e: ChangeEvent<HTMLInputElement>) => {
-    if (inpFieldValue.length > typingText.length || timeLeft < 1) {
-      setIsTyping(false)
-      inputRef.current?.blur()
-
-      stat.currentUserEmail = currentUserEmail
-
-      stopType()
-      typingResultModal.onOpen()
-      return
-    }
-
-    if (!isTyping) {
-      setIsTyping(true)
-      startType()
-    }
-
-    setCharIndex(inpFieldValue.length)
-    stat.mistakes = countCorrectCharacters(currentText, inpFieldValue)
-    setInpFieldValue(e.target.value)
   }
 
   return (
@@ -172,7 +128,7 @@ const Typing: FC<ITypingProps> = ({
               className="md:-z-10 absolute caret-transparent opacity-10 outline-none text-transparent h-28 border-transparent bg-transparent"
               autoFocus
               value={inpFieldValue}
-              onChange={onTyping}
+              onChange={handleTyping}
             />
             <div className="relative pb-8 text-2xl text-neutral-300 font-mono">
               <div className="whitespace-break-spaces leading-8 h-24 overflow-hidden">

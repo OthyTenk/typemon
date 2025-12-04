@@ -3,8 +3,7 @@ import { MyHistory, TypeText, User } from "@prisma/client"
 export interface StartGame {
   startTime: number
   sentence: string
-  creator: Player
-  guest?: Player
+  players: Player[]
 }
 
 export interface Player {

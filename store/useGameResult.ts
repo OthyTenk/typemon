@@ -1,37 +1,51 @@
-import {
-  INITIAL_STATE,
-  IResultStatisticStore,
-} from "@/hooks/useResultStatistic"
+import { IResultStatisticStore } from "@/hooks/useResultStatistic"
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
 interface GameResultStore {
-  creator: IResultStatisticStore
-  guest: IResultStatisticStore
+  players: IResultStatisticStore[]
 }
 
 interface IAction {
-  setCreator: (data: IResultStatisticStore) => void
-  setGuest: (data: IResultStatisticStore) => void
+  updatePlayer: (data: IResultStatisticStore) => void
+  setPlayers: (players: IResultStatisticStore[]) => void
   reset: () => void
 }
 
-const useGameResult = create<GameResultStore & IAction>((set) => ({
-  creator: INITIAL_STATE,
-  guest: INITIAL_STATE,
+const useGameResult = create(
+  persist<GameResultStore & IAction>(
+    (set) => ({
+      players: [],
 
-  setCreator: (data: IResultStatisticStore) =>
-    set({
-      creator: data,
+      updatePlayer: (data: IResultStatisticStore) =>
+        set((state) => {
+          const existingPlayerIndex = state.players.findIndex(
+            (p) => p.currentUserEmail === data.currentUserEmail
+          )
+
+          if (existingPlayerIndex !== -1) {
+            const newPlayers = [...state.players]
+            newPlayers[existingPlayerIndex] = data
+            return { players: newPlayers }
+          }
+
+          return { players: [...state.players, data] }
+        }),
+
+      setPlayers: (players: IResultStatisticStore[]) =>
+        set({
+          players,
+        }),
+
+      reset: () =>
+        set({
+          players: [],
+        }),
     }),
-  setGuest: (data: IResultStatisticStore) =>
-    set({
-      guest: data,
-    }),
-  reset: () =>
-    set({
-      creator: INITIAL_STATE,
-      guest: INITIAL_STATE,
-    }),
-}))
+    {
+      name: "typemon-game-result-storage",
+    }
+  )
+)
 
 export default useGameResult
