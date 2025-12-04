@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.next
+*.html
+/.vscode
+.env
+.env.local
+.env.*.local
+/package.json
+/pnpm-lock.yaml
+*d.ts
+.DS_Store
