@@ -21,12 +21,12 @@
   },
   "homepage": "https://github.com/OthyTenk/typemon#readme",
   "devDependencies": {
-    "@trivago/prettier-plugin-sort-imports": "^6.0.0",
-    "@types/node": "^20.19.25",
-    "prettier": "^3.7.4",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@types/node": "^20.19.30",
+    "prettier": "^3.8.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "turbo": "^2.6.2",
-    "typescript": "^5.2.2"
+    "turbo": "^2.7.5",
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.15.0",
   "engines": {
