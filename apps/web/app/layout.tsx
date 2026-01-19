@@ -10,6 +10,9 @@ import TypingResultModal from "@/components/modals/TypingResultModal"
 import ToasterProvider from "@/providers/ToasterProvider"
 import {
   APP_NAME,
+  AUTHOR,
+  AUTHOR_URL,
+  CREATOR_NAME,
   SITE_DESCRIPTION,
   SITE_TITLE,
   SITE_URL,
@@ -35,11 +38,11 @@ export const metadata: Metadata = {
   },
   authors: [
     { name: "Odonbaatar Lkhamtseren", url: "https://ver41.com" },
-    { name: "OkDo", url: "https://ver41.com" },
     { name: "OthyTenk", url: "https://ver41.com" },
+    { name: AUTHOR, url: AUTHOR_URL },
   ],
   metadataBase: new URL(SITE_URL.substring(0, SITE_URL.length - 1)),
-  creator: "Odonbaatar Lkhamtseren || OthyTenk || OkDo",
+  creator: "Odonbaatar Lkhamtseren || OthyTenk || " + CREATOR_NAME,
   alternates: {
     canonical: "/",
   },

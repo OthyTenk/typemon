@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { APP_NAME } from "@/site_settings"
+import { APP_NAME, AUTHOR_URL } from "@/site_settings"
 import useGlobal from "@/store/useGlobal"
 
 const Footer = () => {
@@ -17,7 +17,7 @@ const Footer = () => {
       <div className="text-sm font-thin font-serif text-neutral-300">
         Created & Prepared by{" "}
         <Link
-          href="https://ver41.com"
+          href={AUTHOR_URL}
           target="_blank"
           className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
           ver<span className="text-yellow-600">41</span>
