@@ -13,11 +13,9 @@ lerna-debug.log*
 .pnp.js
 .yarn/install-state.gz
 
-node_modules
-dist
-dist-ssr
+/node_modules/
 *.local
-.turbo
+/.turbo/
 
 # Editor directories and files
 .DS_Store

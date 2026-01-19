@@ -17,10 +17,10 @@ const Footer = () => {
       <div className="text-sm font-thin font-serif text-neutral-300">
         Created & Prepared by{" "}
         <Link
-          href="https://portfolio.agula.xyz"
+          href="https://ver41.com"
           target="_blank"
-          className="text-yellow-600 hover:text-neutral-300">
-          OkDo
+          className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+          ver<span className="text-yellow-600">41</span>
         </Link>
       </div>
 
