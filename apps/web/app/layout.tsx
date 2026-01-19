@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Outfit } from "next/font/google"
 import React from "react"
 
 import Footer from "@/components/Footer"
@@ -16,7 +16,17 @@ import {
 } from "@/site_settings"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: {
@@ -24,11 +34,12 @@ export const metadata: Metadata = {
     template: `%s - ${SITE_TITLE}`,
   },
   authors: [
-    { name: "Othy Tenk", url: "https://portfolio.agula.xyz" },
-    { name: "OkDo", url: "https://portfolio.agula.xyz" },
+    { name: "Odonbaatar Lkhamtseren", url: "https://ver41.com" },
+    { name: "OkDo", url: "https://ver41.com" },
+    { name: "OthyTenk", url: "https://ver41.com" },
   ],
   metadataBase: new URL(SITE_URL.substring(0, SITE_URL.length - 1)),
-  creator: "Othy Tenk | OkDo",
+  creator: "Odonbaatar Lkhamtseren || OthyTenk || OkDo",
   alternates: {
     canonical: "/",
   },
@@ -70,7 +81,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.className} font-mono bg-[#1E1E1E] text-white h-full selection:bg-gray-800`}>
+        className={`${inter.className} ${outfit.variable} font-mono bg-[#1E1E1E] text-white h-full selection:bg-gray-800`}>
         <ToasterProvider />
         <TypingResultModal />
         <RegisterModal />
