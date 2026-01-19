@@ -8,16 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
 .yarn/install-state.gz
 
-node_modules
-dist
-dist-ssr
+dist/
+dist-ssr/
 *.local
-.turbo
+.turbo/
 
 # Editor directories and files
 .DS_Store
@@ -27,8 +26,8 @@ dist-ssr
 
 # next.js
 .next/
-/out/
-/dist/
+out/
+build/
 .turbo/
 
 # local env files

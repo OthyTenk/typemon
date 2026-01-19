@@ -92,7 +92,7 @@ const LoginForm = () => {
         />
         <div className="text-neutral-500 text-center mt-4 font-light">
           <p>
-            First time using Airbnb?
+            First time using TypeMon?
             <span
               onClick={() => router.push("/auth")}
               className="text-neutral-500 font-semibold cursor-pointer hover:underline">
